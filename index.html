@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>かいじゅうバスターズ</title>
+<style>
+  :root{
+    --neon-cyan:#4dfaff;
+    --neon-pink:#ff3d9a;
+    --neon-yellow:#ffe14d;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:#05001a;
+    font-family:"Yu Gothic","Hiragino Maru Gothic ProN","Rounded Mplus 1c","Meiryo",sans-serif;
+    overflow:hidden;
+    touch-action:manipulation;
+  }
+  body{
+    display:flex; align-items:center; justify-content:center;
+    min-height:100%;
+  }
+  #wrap{
+    width:100%;
+    max-width:960px;
+    padding:12px;
+  }
+  #game-container{
+    position:relative;
+    width:100%;
+    aspect-ratio: 960 / 540;
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:
+      0 0 0 4px #1a0a3a,
+      0 0 24px 6px var(--neon-cyan),
+      0 10px 40px rgba(0,0,0,0.7);
+    background:#0b0033;
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:100%;
+  }
+
+  #ui-overlay{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:10px 16px;
+    pointer-events:none;
+    font-weight:900;
+  }
+  #score-display{
+    color:#fff;
+    font-size:clamp(16px,3vw,26px);
+    text-shadow:0 0 8px var(--neon-cyan), 0 0 2px #fff, 2px 2px 0 #000;
+    background:rgba(10,0,40,0.45);
+    padding:4px 14px;
+    border-radius:20px;
+    border:2px solid var(--neon-cyan);
+  }
+  #combo-display{
+    color:var(--neon-yellow);
+    font-size:clamp(16px,3.4vw,28px);
+    text-shadow:0 0 10px var(--neon-yellow), 2px 2px 0 #000;
+    opacity:0;
+    transform:scale(0.6);
+    transition:opacity .15s, transform .15s;
+    background:rgba(10,0,40,0.45);
+    padding:4px 14px;
+    border-radius:20px;
+    border:2px solid var(--neon-yellow);
+  }
+  #combo-display.show{
+    opacity:1;
+    transform:scale(1);
+  }
+
+  .overlay-screen{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center;
+    background:radial-gradient(ellipse at center, rgba(30,0,70,0.85) 0%, rgba(5,0,25,0.96) 75%);
+    color:#fff;
+    padding:20px;
+  }
+  .overlay-screen.hidden{ display:none; }
+
+  #title-screen h1{
+    font-size:clamp(30px,7vw,58px);
+    margin:0 0 6px 0;
+    line-height:1.15;
+    color:#fff;
+    text-shadow:
+      0 0 6px var(--neon-cyan),
+      0 0 20px var(--neon-pink),
+      3px 3px 0 #000;
+    letter-spacing:2px;
+    animation:pulseTitle 1.6s ease-in-out infinite;
+  }
+  @keyframes pulseTitle{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.045); }
+  }
+  #title-screen p{
+    font-size:clamp(14px,2.6vw,22px);
+    margin:6px 0 22px 0;
+    color:var(--neon-yellow);
+    text-shadow:1px 1px 0 #000;
+  }
+  .big-btn{
+    font-family:inherit;
+    font-weight:900;
+    font-size:clamp(20px,4.4vw,32px);
+    color:#1a0033;
+    background:linear-gradient(180deg,#ffe14d,#ff9a3d);
+    border:4px solid #fff;
+    border-radius:50px;
+    padding:14px 46px;
+    cursor:pointer;
+    box-shadow:0 6px 0 #b35c00, 0 8px 20px rgba(255,150,0,0.5);
+    transition:transform .08s, box-shadow .08s;
+  }
+  .big-btn:active{
+    transform:translateY(6px);
+    box-shadow:0 0 0 #b35c00, 0 2px 8px rgba(255,150,0,0.5);
+  }
+
+  .diff-label{
+    font-size:clamp(13px,2.4vw,19px);
+    margin:0 0 12px 0;
+    color:#fff;
+    text-shadow:1px 1px 0 #000;
+  }
+  #diff-row{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .diff-btn{
+    font-family:inherit;
+    font-weight:900;
+    font-size:clamp(16px,3vw,22px);
+    color:#1a0033;
+    border:4px solid #fff;
+    border-radius:50px;
+    padding:12px 26px;
+    cursor:pointer;
+    transition:transform .08s, box-shadow .08s;
+  }
+  .diff-btn:active{
+    transform:translateY(6px);
+  }
+  .diff-easy{
+    background:linear-gradient(180deg,#a6ff6e,#4dcf4d);
+    box-shadow:0 6px 0 #2e8f2e, 0 8px 20px rgba(80,220,80,0.5);
+  }
+  .diff-normal{
+    background:linear-gradient(180deg,#ffe14d,#ff9a3d);
+    box-shadow:0 6px 0 #b35c00, 0 8px 20px rgba(255,150,0,0.5);
+  }
+  .diff-hard{
+    background:linear-gradient(180deg,#ff8a8a,#ff3d3d);
+    box-shadow:0 6px 0 #a30000, 0 8px 20px rgba(255,60,60,0.5);
+  }
+
+  #gameover-screen h1{
+    font-size:clamp(28px,6.6vw,52px);
+    margin:0 0 10px 0;
+    color:#fff;
+    text-shadow:0 0 10px #ff3d3d, 0 0 24px #ff3d3d, 3px 3px 0 #000;
+  }
+  #gameover-screen p{
+    font-size:clamp(16px,3.2vw,26px);
+    margin:0 0 22px 0;
+    color:var(--neon-cyan);
+    text-shadow:1px 1px 0 #000;
+  }
+
+  #key-hint-bar{
+    position:absolute; left:0; right:0; bottom:0;
+    text-align:center;
+    color:#fff;
+    font-size:clamp(11px,2vw,15px);
+    padding:4px 0 6px;
+    background:linear-gradient(to top, rgba(0,0,0,0.35), transparent);
+    pointer-events:none;
+    text-shadow:1px 1px 0 #000;
+  }
+
+  #keyboard-panel{
+    margin:14px auto 0;
+    max-width:960px;
+    background:rgba(10,0,40,0.5);
+    border:2px solid rgba(77,250,255,0.3);
+    border-radius:16px;
+    padding:14px 10px 10px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+  .kbd-title{
+    color:var(--neon-cyan);
+    font-weight:900;
+    font-size:clamp(12px,2.2vw,16px);
+    text-shadow:0 0 6px var(--neon-cyan), 1px 1px 0 #000;
+    letter-spacing:1px;
+  }
+  .kbd-rows{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:clamp(4px,0.8vw,7px);
+  }
+  .kbd-row{
+    display:flex;
+    gap:clamp(3px,0.7vw,6px);
+  }
+  .kbd-row.row-2{ margin-left:clamp(8px,1.8vw,20px); }
+  .kbd-row.row-3{ margin-left:clamp(16px,3.4vw,38px); }
+  .kbd-row.row-4{ margin-left:clamp(24px,5vw,56px); }
+
+  .kbd-key{
+    position:relative;
+    width:clamp(22px,3.7vw,40px);
+    height:clamp(22px,3.7vw,40px);
+    border-radius:7px;
+    background:#150a38;
+    border:2px solid #2c1f5c;
+    color:#443a7a;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:900;
+    font-size:clamp(10px,1.6vw,15px);
+    text-transform:uppercase;
+    transition:transform .12s, box-shadow .12s, background .12s, color .12s, border-color .12s;
+  }
+  .kbd-key.usable{
+    color:#cfe8ff;
+    border-color:#4a3a9a;
+    background:#1c1050;
+  }
+  .kbd-key.active{
+    background:linear-gradient(180deg,#fff6b0,#ffd23d);
+    border-color:#fff;
+    color:#1a0033;
+    box-shadow:0 0 14px 3px #ffe14d, 0 0 26px 8px rgba(255,225,77,0.55);
+    transform:scale(1.18);
+    animation:kbdKeyPulse .6s ease-in-out infinite;
+    z-index:2;
+  }
+  @keyframes kbdKeyPulse{
+    0%,100%{ transform:scale(1.18); }
+    50%{ transform:scale(1.32); }
+  }
+  .key-kana{
+    position:absolute;
+    top:-1.6em;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:1.3em;
+    color:#ff2f7a;
+    text-shadow:0 0 6px #ff2f7a, 1px 1px 0 #000;
+    opacity:0;
+    transition:opacity .12s;
+    pointer-events:none;
+    white-space:nowrap;
+  }
+  .kbd-key.active .key-kana{ opacity:1; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="game-container">
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+    <div id="ui-overlay">
+      <div id="score-display">スコア <span id="scoreValue">0</span></div>
+      <div id="combo-display">コンボ <span id="comboValue">0</span></div>
+    </div>
+
+    <div id="key-hint-bar">キーボードの　もじを　おして　かいじゅうを　やっつけよう！</div>
+
+    <div id="title-screen" class="overlay-screen">
+      <h1>かいじゅう<br>バスターズ</h1>
+      <p>ひらがなを　うって　かいじゅうを　たおそう！</p>
+      <p class="diff-label">レベルを　えらんでね</p>
+      <div id="diff-row">
+        <button class="diff-btn diff-easy" data-diff="easy">やさしい</button>
+        <button class="diff-btn diff-normal" data-diff="normal">ふつう</button>
+        <button class="diff-btn diff-hard" data-diff="hard">むずかしい</button>
+      </div>
+    </div>
+
+    <div id="gameover-screen" class="overlay-screen hidden">
+      <h1>まちの　ピンチ！</h1>
+      <p>スコア <span id="finalScore">0</span></p>
+      <button id="retryButton" class="big-btn">もういちど</button>
+    </div>
+  </div>
+
+  <div id="keyboard-panel">
+    <div class="kbd-title">キーボード　ヒント</div>
+    <div class="kbd-rows">
+      <div class="kbd-row row-1">
+        <div class="kbd-key" data-key="1">1<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="2">2<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="3">3<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="4">4<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="5">5<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="6">6<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="7">7<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="8">8<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="9">9<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="0">0<span class="key-kana"></span></div>
+      </div>
+      <div class="kbd-row row-2">
+        <div class="kbd-key" data-key="q">Q<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="w">W<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="e">E<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="r">R<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="t">T<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="y">Y<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="u">U<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="i">I<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="o">O<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="p">P<span class="key-kana"></span></div>
+      </div>
+      <div class="kbd-row row-3">
+        <div class="kbd-key" data-key="a">A<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="s">S<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="d">D<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="f">F<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="g">G<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="h">H<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="j">J<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="k">K<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="l">L<span class="key-kana"></span></div>
+      </div>
+      <div class="kbd-row row-4">
+        <div class="kbd-key" data-key="z">Z<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="x">X<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="c">C<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="v">V<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="b">B<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="n">N<span class="key-kana"></span></div>
+        <div class="kbd-key" data-key="m">M<span class="key-kana"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ============================================================
+  // きほんの じゅんび（キャンバス と がめんようそ の しゅとく）
+  // ============================================================
+  var canvas = document.getElementById('gameCanvas');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+
+  var titleScreen = document.getElementById('title-screen');
+  var gameoverScreen = document.getElementById('gameover-screen');
+  var diffButtons = document.querySelectorAll('.diff-btn');
+  var retryButton = document.getElementById('retryButton');
+  var scoreValueEl = document.getElementById('scoreValue');
+  var comboDisplayEl = document.getElementById('combo-display');
+  var comboValueEl = document.getElementById('comboValue');
+  var finalScoreEl = document.getElementById('finalScore');
+
+  // ゲームの じょうたい（タイトル／プレイちゅう／ゲームオーバー）
+  var STATE_TITLE = 0, STATE_PLAYING = 1, STATE_GAMEOVER = 2;
+  var state = STATE_TITLE;
+
+  // ============================================================
+  // Web Audio API：おとを プログラムで つくる（がいぶファイルは つかわない）
+  // ============================================================
+  var audioCtx = null;
+  var masterGain = null;
+
+  function initAudio(){
+    if(audioCtx) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AC();
+    var compressor = audioCtx.createDynamicsCompressor();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.9;
+    masterGain.connect(compressor);
+    compressor.connect(audioCtx.destination);
+  }
+
+  function resumeAudio(){
+    if(audioCtx && audioCtx.state === 'suspended'){
+      audioCtx.resume();
+    }
+  }
+
+  // レーザー発射音「ビシューン！」
+  function playLaser(){
+    if(!audioCtx) return;
+    var t = audioCtx.currentTime;
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(2200, t);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.16);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.32, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+    osc.connect(gain).connect(masterGain);
+    osc.start(t);
+    osc.stop(t + 0.2);
+
+    // きらきら した たかい ひびきを かさねる
+    var osc2 = audioCtx.createOscillator();
+    var gain2 = audioCtx.createGain();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(3400, t);
+    osc2.frequency.exponentialRampToValueAtTime(900, t + 0.1);
+    gain2.gain.setValueAtTime(0.0001, t);
+    gain2.gain.exponentialRampToValueAtTime(0.12, t + 0.005);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+    osc2.connect(gain2).connect(masterGain);
+    osc2.start(t);
+    osc2.stop(t + 0.12);
+  }
+
+  // ばくはつおと「ドカーン！」
+  function playExplosion(){
+    if(!audioCtx) return;
+    var t = audioCtx.currentTime;
+
+    var bufferSize = Math.floor(audioCtx.sampleRate * 0.4);
+    var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for(var i=0;i<bufferSize;i++){
+      var decay = Math.pow(1 - i/bufferSize, 2);
+      data[i] = (Math.random()*2-1) * decay;
+    }
+    var noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    var filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1400, t);
+    filter.frequency.exponentialRampToValueAtTime(90, t + 0.38);
+    var noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(0.55, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    noise.connect(filter).connect(noiseGain).connect(masterGain);
+    noise.start(t);
+
+    var osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.exponentialRampToValueAtTime(28, t + 0.35);
+    var oGain = audioCtx.createGain();
+    oGain.gain.setValueAtTime(0.9, t);
+    oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+    osc.connect(oGain).connect(masterGain);
+    osc.start(t);
+    osc.stop(t + 0.43);
+  }
+
+  // コンボ おと（たのしい たんおん の れんぞく）
+  function playComboJingle(level){
+    if(!audioCtx) return;
+    var t = audioCtx.currentTime;
+    var notes = [523.25, 659.25, 783.99, 1046.5]; // ド ミ ソ ド
+    var n = Math.min(notes.length, 2 + (level % 3));
+    for(var i=0;i<n;i++){
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      var nt = t + i*0.07;
+      osc.frequency.setValueAtTime(notes[i], nt);
+      gain.gain.setValueAtTime(0.0001, nt);
+      gain.gain.exponentialRampToValueAtTime(0.28, nt+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, nt+0.18);
+      osc.connect(gain).connect(masterGain);
+      osc.start(nt);
+      osc.stop(nt+0.2);
+    }
+  }
+
+  // まちに ぶつかった とき の けいほうおん
+  function playCityHit(){
+    if(!audioCtx) return;
+    var t = audioCtx.currentTime;
+    for(var i=0;i<2;i++){
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'square';
+      var nt = t + i*0.14;
+      osc.frequency.setValueAtTime(440, nt);
+      osc.frequency.linearRampToValueAtTime(220, nt+0.12);
+      gain.gain.setValueAtTime(0.0001, nt);
+      gain.gain.exponentialRampToValueAtTime(0.25, nt+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, nt+0.13);
+      osc.connect(gain).connect(masterGain);
+      osc.start(nt);
+      osc.stop(nt+0.14);
+    }
+  }
+
+  // ゲームオーバーおと
+  function playGameOverSound(){
+    if(!audioCtx) return;
+    var t = audioCtx.currentTime;
+    var notes = [392, 349.23, 293.66, 220];
+    for(var i=0;i<notes.length;i++){
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      var nt = t + i*0.18;
+      osc.frequency.setValueAtTime(notes[i], nt);
+      gain.gain.setValueAtTime(0.0001, nt);
+      gain.gain.exponentialRampToValueAtTime(0.3, nt+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, nt+0.3);
+      osc.connect(gain).connect(masterGain);
+      osc.start(nt);
+      osc.stop(nt+0.32);
+    }
+  }
+
+  // スタートの ファンファーレ
+  function playStartJingle(){
+    if(!audioCtx) return;
+    var t = audioCtx.currentTime;
+    var notes = [523.25, 659.25, 783.99, 1046.5];
+    for(var i=0;i<notes.length;i++){
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'square';
+      var nt = t + i*0.1;
+      osc.frequency.setValueAtTime(notes[i], nt);
+      gain.gain.setValueAtTime(0.0001, nt);
+      gain.gain.exponentialRampToValueAtTime(0.22, nt+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, nt+0.16);
+      osc.connect(gain).connect(masterGain);
+      osc.start(nt);
+      osc.stop(nt+0.18);
+    }
+  }
+
+  // ============================================================
+  // もじ の わりあて（1かい の キーで 1もじ の ひらがな）
+  // ============================================================
+  var KANA_MAP = [
+    {key:'a', char:'あ'}, {key:'i', char:'い'}, {key:'u', char:'う'},
+    {key:'e', char:'え'}, {key:'o', char:'お'}, {key:'k', char:'か'},
+    {key:'s', char:'さ'}, {key:'t', char:'た'}, {key:'n', char:'な'},
+    {key:'h', char:'は'}, {key:'m', char:'ま'}, {key:'y', char:'や'},
+    {key:'r', char:'ら'}, {key:'w', char:'わ'}
+  ];
+
+  // ============================================================
+  // がめん した の キーボード ひょうじ
+  // ============================================================
+  var keyElements = {};
+  (function setupKeyboardDisplay(){
+    var usable = {};
+    for(var i=0;i<KANA_MAP.length;i++){ usable[KANA_MAP[i].key] = true; }
+    var els = document.querySelectorAll('.kbd-key');
+    for(var j=0;j<els.length;j++){
+      var el = els[j];
+      var k = el.getAttribute('data-key');
+      keyElements[k] = el;
+      if(usable[k]) el.classList.add('usable');
+    }
+  })();
+
+  function updateKeyboardHighlight(list){
+    var activeSet = {};
+    for(var i=0;i<list.length;i++){ activeSet[list[i].key] = list[i].char; }
+    for(var k in keyElements){
+      var el = keyElements[k];
+      if(activeSet[k]){
+        if(!el.classList.contains('active')) el.classList.add('active');
+        var label = el.querySelector('.key-kana');
+        if(label && label.textContent !== activeSet[k]) label.textContent = activeSet[k];
+      } else if(el.classList.contains('active')){
+        el.classList.remove('active');
+      }
+    }
+  }
+
+  // ============================================================
+  // レーン（かいじゅうが すすむ 3ほんの みち）
+  // ============================================================
+  var LANES = [150, 270, 390];
+  var HERO_X = 130;
+
+  // ============================================================
+  // ゲーム データ
+  // ============================================================
+  var score = 0;
+  var combo = 0;
+  var comboResetTimer = 0;
+  var lives = 3;
+  var elapsed = 0;
+  var spawnTimer = 0;
+  var enemies = [];
+  var particles = [];
+  var lasers = [];
+  var popups = [];
+  var muzzleFlash = [0,0,0]; // レーンごとの マズルフラッシュ タイマー
+  var shakeTime = 0;
+  var shakeMag = 0;
+  var enemyIdCounter = 0;
+
+  // ============================================================
+  // なんいど（かいじゅうの すすむ はやさに かける ばいりつ）
+  // ============================================================
+  var DIFFICULTY_SPEED = { easy: 1/6, normal: 1/3, hard: 1 };
+  var difficulty = 'normal';
+  var speedMultiplier = DIFFICULTY_SPEED.normal;
+
+  var COMBO_WORDS = ['すごい！','かっこいい！','サイキョー！','ばっちり！','つよい！','かいじゅうハンター！'];
+
+  var ENEMY_TYPES = ['green','purple','red','blue'];
+
+  function rand(min, max){ return Math.random()*(max-min)+min; }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  // ============================================================
+  // ほし（はいけい えんしゅつよう）
+  // ============================================================
+  var stars = [];
+  for(var si=0; si<60; si++){
+    stars.push({
+      x: Math.random()*W,
+      y: Math.random()*H*0.55,
+      r: rand(0.6, 2.2),
+      speed: rand(1,3),
+      offset: rand(0, Math.PI*2)
+    });
+  }
+
+  // ============================================================
+  // てき（かいじゅう）の せいせい
+  // ============================================================
+  function activeKeys(){
+    var set = {};
+    for(var i=0;i<enemies.length;i++){ set[enemies[i].key] = true; }
+    return set;
+  }
+
+  function spawnEnemy(){
+    var used = activeKeys();
+    var candidates = KANA_MAP.filter(function(k){ return !used[k.key]; });
+    if(candidates.length === 0) return; // ぜんぶの キーが つかわれちゅう なら スポーンを みおくる
+
+    var kv = pick(candidates);
+    var laneIdx = Math.floor(Math.random()*LANES.length);
+    var speedBase = (46 + Math.min(elapsed, 90) * 0.9) * speedMultiplier; // じかんが たつほど はやくなる（なんいどで ちょうせい）
+    enemies.push({
+      id: enemyIdCounter++,
+      key: kv.key,
+      char: kv.char,
+      lane: laneIdx,
+      x: W + rand(20,120),
+      y: LANES[laneIdx],
+      size: rand(46,58),
+      type: pick(ENEMY_TYPES),
+      speed: speedBase * rand(0.85, 1.15),
+      walkPhase: rand(0, Math.PI*2),
+      bob: rand(0, Math.PI*2)
+    });
+  }
+
+  // ============================================================
+  // パーティクル（ばくはつ の つぶつぶ）
+  // ============================================================
+  function spawnExplosion(x, y){
+    var colors = ['#ff5252','#ffeb3b','#4dfaff','#ff9a3d','#ff3d9a','#ffffff'];
+    var count = 26;
+    for(var i=0;i<count;i++){
+      var angle = Math.random()*Math.PI*2;
+      var speed = rand(60, 320);
+      particles.push({
+        x:x, y:y,
+        vx: Math.cos(angle)*speed,
+        vy: Math.sin(angle)*speed - rand(0,60),
+        life: rand(0.4, 0.9),
+        maxLife: 0,
+        size: rand(3,8),
+        color: pick(colors)
+      });
+    }
+    particles.forEach(function(p){ if(p.maxLife===0) p.maxLife = p.life; });
+    shakeTime = 0.28;
+    shakeMag = 14;
+  }
+
+  // ============================================================
+  // ポップアップ（コンボの カットインもじ）
+  // ============================================================
+  function spawnPopup(text, color){
+    popups.push({
+      text:text,
+      color:color,
+      timer:0,
+      duration:0.9
+    });
+  }
+
+  // ============================================================
+  // にゅうりょく しょり（キーボード）
+  // ============================================================
+  window.addEventListener('keydown', function(e){
+    if(state !== STATE_PLAYING) return;
+    var key = e.key ? e.key.toLowerCase() : '';
+
+    // いちばん ヒーローに ちかい（x が いちばん ちいさい）てきを たおす
+    var target = null;
+    var minX = Infinity;
+    for(var j=0;j<enemies.length;j++){
+      if(enemies[j].key === key && enemies[j].x < minX){
+        minX = enemies[j].x;
+        target = enemies[j];
+      }
+    }
+    if(target){
+      destroyEnemy(target);
+    }
+  });
+
+  function destroyEnemy(target){
+    // レーザー えんしゅつ
+    lasers.push({
+      x1: HERO_X + 40,
+      y1: LANES[target.lane],
+      x2: target.x,
+      y2: target.y,
+      life: 0.12,
+      maxLife: 0.12
+    });
+    muzzleFlash[target.lane] = 0.12;
+    playLaser();
+
+    // すこし おくれて ばくはつ
+    var ex = target.x, ey = target.y;
+    setTimeout(function(){
+      spawnExplosion(ex, ey);
+      playExplosion();
+    }, 70);
+
+    // はいれつから さくじょ
+    var idx = enemies.indexOf(target);
+    if(idx >= 0) enemies.splice(idx,1);
+
+    // スコア と コンボ
+    combo++;
+    comboResetTimer = 2.2;
+    score += 100 * Math.min(combo, 10);
+    scoreValueEl.textContent = score;
+    updateComboUI();
+
+    if(combo > 0 && combo % 5 === 0){
+      spawnPopup(pick(COMBO_WORDS), '#ffe14d');
+      playComboJingle(combo/5);
+    }
+  }
+
+  function updateComboUI(){
+    if(combo >= 2){
+      comboValueEl.textContent = combo;
+      comboDisplayEl.classList.add('show');
+    } else {
+      comboDisplayEl.classList.remove('show');
+    }
+  }
+
+  // ============================================================
+  // まちに とうたつ された とき
+  // ============================================================
+  function cityHit(target){
+    if(state !== STATE_PLAYING) return;
+    var idx = enemies.indexOf(target);
+    if(idx >= 0) enemies.splice(idx,1);
+    lives--;
+    combo = 0;
+    updateComboUI();
+    shakeTime = 0.4;
+    shakeMag = 22;
+    playCityHit();
+    if(lives <= 0){
+      gameOver();
+    }
+  }
+
+  // ============================================================
+  // ゲーム しんこう かんり
+  // ============================================================
+  function resetGame(){
+    score = 0;
+    combo = 0;
+    comboResetTimer = 0;
+    lives = 3;
+    elapsed = 0;
+    spawnTimer = 0;
+    enemies = [];
+    particles = [];
+    lasers = [];
+    popups = [];
+    muzzleFlash = [0,0,0];
+    shakeTime = 0; shakeMag = 0;
+    scoreValueEl.textContent = '0';
+    updateComboUI();
+  }
+
+  function startGame(diff){
+    if(diff) difficulty = diff;
+    speedMultiplier = DIFFICULTY_SPEED[difficulty] || DIFFICULTY_SPEED.normal;
+    initAudio();
+    resumeAudio();
+    resetGame();
+    state = STATE_PLAYING;
+    titleScreen.classList.add('hidden');
+    gameoverScreen.classList.add('hidden');
+    playStartJingle();
+  }
+
+  function gameOver(){
+    state = STATE_GAMEOVER;
+    finalScoreEl.textContent = score;
+    gameoverScreen.classList.remove('hidden');
+    playGameOverSound();
+  }
+
+  for(var di=0; di<diffButtons.length; di++){
+    diffButtons[di].addEventListener('click', function(e){
+      startGame(e.currentTarget.getAttribute('data-diff'));
+    });
+  }
+  retryButton.addEventListener('click', function(){ startGame(); });
+
+  // ============================================================
+  // こうしん しょり
+  // ============================================================
+  function update(dt){
+    elapsed += dt;
+
+    if(comboResetTimer > 0){
+      comboResetTimer -= dt;
+      if(comboResetTimer <= 0){
+        combo = 0;
+        updateComboUI();
+      }
+    }
+
+    // スポーン
+    spawnTimer -= dt;
+    var interval = Math.max(0.55, 1.7 - elapsed*0.012);
+    if(spawnTimer <= 0){
+      spawnEnemy();
+      spawnTimer = interval * rand(0.8, 1.2);
+    }
+
+    // てき の いどう
+    for(var i=enemies.length-1;i>=0;i--){
+      var en = enemies[i];
+      en.x -= en.speed * dt;
+      en.walkPhase += dt*6;
+      en.bob += dt*3;
+      if(en.x <= HERO_X + 55){
+        cityHit(en);
+      }
+    }
+
+    // パーティクル
+    for(var p=particles.length-1;p>=0;p--){
+      var pt = particles[p];
+      pt.life -= dt;
+      if(pt.life <= 0){ particles.splice(p,1); continue; }
+      pt.x += pt.vx*dt;
+      pt.y += pt.vy*dt;
+      pt.vy += 420*dt;
+      pt.vx *= 0.98;
+    }
+
+    // レーザー
+    for(var l=lasers.length-1;l>=0;l--){
+      lasers[l].life -= dt;
+      if(lasers[l].life <= 0) lasers.splice(l,1);
+    }
+
+    // マズルフラッシュ
+    for(var m=0;m<muzzleFlash.length;m++){
+      if(muzzleFlash[m] > 0) muzzleFlash[m] -= dt;
+    }
+
+    // ポップアップ
+    for(var u=popups.length-1;u>=0;u--){
+      popups[u].timer += dt;
+      if(popups[u].timer >= popups[u].duration) popups.splice(u,1);
+    }
+
+    // がめんゆれ
+    if(shakeTime > 0) shakeTime -= dt;
+  }
+
+  // ============================================================
+  // びょうが しょり
+  // ============================================================
+  function drawBackground(t){
+    var grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#0a0033');
+    grad.addColorStop(0.55,'#1a0057');
+    grad.addColorStop(1,'#3a0ca3');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    // ほし
+    for(var i=0;i<stars.length;i++){
+      var s = stars[i];
+      var tw = 0.5 + 0.5*Math.sin(t*s.speed + s.offset);
+      ctx.globalAlpha = 0.3 + tw*0.7;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // つき
+    ctx.fillStyle = '#fff6cf';
+    ctx.beginPath();
+    ctx.arc(W-90, 70, 34, 0, Math.PI*2);
+    ctx.fill();
+
+    // とおくの ビル シルエット
+    ctx.fillStyle = '#150140';
+    var bx = 0;
+    var bw = 40;
+    var seedH = [80,120,60,140,90,110,70,150,100,130];
+    var idx2 = 0;
+    while(bx < W){
+      var bh = seedH[idx2 % seedH.length];
+      ctx.fillRect(bx, H*0.62 - bh, bw-6, bh);
+      bx += bw;
+      idx2++;
+    }
+
+    // ネオン グラウンドライン（えんきんかん）
+    ctx.strokeStyle = 'rgba(77,250,255,0.35)';
+    ctx.lineWidth = 2;
+    var groundY = H*0.86;
+    for(var gx=-200; gx<W+200; gx+=60){
+      ctx.beginPath();
+      ctx.moveTo(gx, H);
+      ctx.lineTo(W/2 + (gx-W/2)*0.15, groundY);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(W, groundY);
+    ctx.stroke();
+
+    // ちめん
+    var groundGrad = ctx.createLinearGradient(0,groundY,0,H);
+    groundGrad.addColorStop(0,'#1a0a4a');
+    groundGrad.addColorStop(1,'#05001a');
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, groundY, W, H-groundY);
+  }
+
+  function drawCity(){
+    // まちの たてもの（のこり ライフの ぶんだけ ひょうじ）
+    var baseX = 6;
+    for(var i=0;i<3;i++){
+      var alive = i < lives;
+      var bx = baseX + i*26;
+      var bh = 60 + i*16;
+      var by = H*0.86 - bh;
+      ctx.fillStyle = alive ? '#2a1568' : '#160828';
+      ctx.fillRect(bx, by, 20, bh);
+      if(alive){
+        ctx.fillStyle = '#ffe14d';
+        for(var wy=by+8; wy<by+bh-6; wy+=12){
+          ctx.fillRect(bx+4, wy, 4,6);
+          ctx.fillRect(bx+12, wy, 4,6);
+        }
+      } else {
+        ctx.strokeStyle = '#ff3d3d';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bx,by); ctx.lineTo(bx+20,by+bh);
+        ctx.moveTo(bx+20,by); ctx.lineTo(bx,by+bh);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawHero(t){
+    var hx = HERO_X, hy = H/2;
+    var bob = Math.sin(t*2.4)*4;
+
+    ctx.save();
+    ctx.translate(hx, hy+bob);
+
+    // ボディ グロー
+    ctx.shadowColor = '#4dfaff';
+    ctx.shadowBlur = 18;
+
+    // あし
+    ctx.fillStyle = '#233';
+    ctx.fillRect(-22, 120, 16, 26);
+    ctx.fillRect(6, 120, 16, 26);
+
+    // からだ（3レーン ぶん たて長い ヒーロー）
+    var bodyGrad = ctx.createLinearGradient(0,-120,0,140);
+    bodyGrad.addColorStop(0,'#7ef9ff');
+    bodyGrad.addColorStop(0.5,'#2b8fff');
+    bodyGrad.addColorStop(1,'#123a8f');
+    ctx.fillStyle = bodyGrad;
+    roundRect(-30,-120,60,240,18);
+    ctx.fill();
+
+    // むね の コア
+    ctx.shadowBlur = 26;
+    ctx.fillStyle = '#ffe14d';
+    ctx.beginPath();
+    ctx.arc(0, 0, 14 + Math.sin(t*6)*2, 0, Math.PI*2);
+    ctx.fill();
+
+    // あたま
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = '#e8fbff';
+    ctx.beginPath();
+    ctx.arc(0, -150, 26, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#0ff';
+    ctx.fillRect(-16,-158,32,10);
+
+    ctx.shadowBlur = 0;
+
+    // うで＆マズル（レーンごと）
+    for(var i=0;i<LANES.length;i++){
+      var ly = LANES[i] - hy - bob;
+      ctx.fillStyle = '#345';
+      ctx.fillRect(20, ly-8, 34, 16);
+      var flash = muzzleFlash[i];
+      if(flash > 0){
+        var r = 10 + (0.12-flash)*80;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, flash/0.12);
+        var g = ctx.createRadialGradient(54,ly,0,54,ly,r);
+        g.addColorStop(0,'#fff');
+        g.addColorStop(0.4,'#4dfaff');
+        g.addColorStop(1,'rgba(77,250,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(54, ly, r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#4dfaff';
+        ctx.beginPath();
+        ctx.arc(54, ly, 6, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  var TYPE_COLORS = {
+    green:  {body:'#4caf50', dark:'#2e7d32', spike:'#c8ff5a'},
+    purple: {body:'#9c4dff', dark:'#5e17b7', spike:'#ff8afc'},
+    red:    {body:'#ff5252', dark:'#b71c1c', spike:'#ffcf4d'},
+    blue:   {body:'#4da3ff', dark:'#1a4fb0', spike:'#c8f6ff'}
+  };
+
+  function drawKaiju(en){
+    var c = TYPE_COLORS[en.type];
+    var legOffset = Math.sin(en.walkPhase)*6;
+    var bobY = Math.sin(en.bob)*3;
+    var x = en.x, y = en.y + bobY;
+    var s = en.size;
+
+    ctx.save();
+    ctx.translate(x,y);
+
+    // かげ
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, s*0.72, s*0.55, s*0.16, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // あし
+    ctx.fillStyle = c.dark;
+    ctx.fillRect(-s*0.32, s*0.25+legOffset*0.3, s*0.18, s*0.35);
+    ctx.fillRect(s*0.14, s*0.25-legOffset*0.3, s*0.18, s*0.35);
+
+    // しっぽ
+    ctx.fillStyle = c.body;
+    ctx.beginPath();
+    ctx.moveTo(s*0.35, 0);
+    ctx.quadraticCurveTo(s*0.9, s*0.1, s*0.95, -s*0.25);
+    ctx.quadraticCurveTo(s*0.55, -s*0.05, s*0.35, s*0.15);
+    ctx.closePath();
+    ctx.fill();
+
+    // からだ
+    ctx.fillStyle = c.body;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s*0.5, s*0.4, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // せなか の とげ
+    ctx.fillStyle = c.spike;
+    for(var i=-2;i<=2;i++){
+      ctx.beginPath();
+      ctx.moveTo(i*s*0.14, -s*0.32);
+      ctx.lineTo(i*s*0.14 - s*0.05, -s*0.55);
+      ctx.lineTo(i*s*0.14 + s*0.05, -s*0.32);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // あたま
+    ctx.fillStyle = c.body;
+    ctx.beginPath();
+    ctx.ellipse(-s*0.48, -s*0.08, s*0.32, s*0.26, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // つの
+    ctx.fillStyle = c.spike;
+    ctx.beginPath();
+    ctx.moveTo(-s*0.62,-s*0.28);
+    ctx.lineTo(-s*0.72,-s*0.5);
+    ctx.lineTo(-s*0.5,-s*0.32);
+    ctx.closePath();
+    ctx.fill();
+
+    // め
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(-s*0.55,-s*0.1, s*0.09, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(-s*0.53,-s*0.1, s*0.045, 0, Math.PI*2);
+    ctx.fill();
+
+    // くち
+    ctx.strokeStyle = c.dark;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-s*0.78,-s*0.02);
+    ctx.lineTo(-s*0.5, s*0.05);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // ふきだし（もじ ひょうじ）
+    drawBubble(en);
+  }
+
+  function drawBubble(en){
+    var bw = 74, bh = 62;
+    var bx = en.x - bw/2;
+    var by = en.y - en.size*0.75 - bh - 4;
+
+    ctx.save();
+    // グロー
+    ctx.shadowColor = '#ff3d9a';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#fff8e0';
+    ctx.strokeStyle = '#ff3d9a';
+    ctx.lineWidth = 4;
+    roundRect(bx,by,bw,bh,16);
+    ctx.fill();
+    ctx.stroke();
+
+    // しっぽ（したの さんかく）
+    ctx.beginPath();
+    ctx.moveTo(en.x-10, by+bh);
+    ctx.lineTo(en.x+10, by+bh);
+    ctx.lineTo(en.x, by+bh+14);
+    ctx.closePath();
+    ctx.fillStyle = '#fff8e0';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // ひらがな（おおきく）
+    ctx.fillStyle = '#ff2f7a';
+    ctx.font = '900 44px "Yu Gothic","Meiryo",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(en.char, en.x, by+bh/2-4);
+
+    // キー ヒント（ちいさい ローマじ）
+    ctx.fillStyle = '#7a5';
+    ctx.font = '700 13px "Yu Gothic","Meiryo",sans-serif';
+    ctx.fillStyle = '#3a8a3a';
+    ctx.fillText('[ ' + en.key.toUpperCase() + ' ]', en.x, by+bh-8);
+
+    ctx.restore();
+  }
+
+  function drawLasers(){
+    for(var i=0;i<lasers.length;i++){
+      var l = lasers[i];
+      var alpha = Math.max(0, l.life / l.maxLife);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.lineCap = 'round';
+
+      // そとがわ グロー
+      ctx.strokeStyle = '#4dfaff';
+      ctx.lineWidth = 14;
+      ctx.shadowColor = '#4dfaff';
+      ctx.shadowBlur = 22;
+      ctx.beginPath();
+      ctx.moveTo(l.x1,l.y1);
+      ctx.lineTo(l.x2,l.y2);
+      ctx.stroke();
+
+      // なかしん
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(l.x1,l.y1);
+      ctx.lineTo(l.x2,l.y2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+  }
+
+  function drawParticles(){
+    for(var i=0;i<particles.length;i++){
+      var p = particles[i];
+      var a = Math.max(0, p.life / p.maxLife);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size*a + 1, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawPopups(){
+    for(var i=0;i<popups.length;i++){
+      var u = popups[i];
+      var k = u.timer / u.duration;
+      var scale, alpha;
+      if(k < 0.25){
+        scale = 0.4 + (k/0.25)*0.9; // ポップイン
+        alpha = k/0.25;
+      } else if(k < 0.7){
+        scale = 1.3 - ((k-0.25)/0.45)*0.15;
+        alpha = 1;
+      } else {
+        scale = 1.15;
+        alpha = 1 - (k-0.7)/0.3;
+      }
+      ctx.save();
+      ctx.globalAlpha = Math.max(0,alpha);
+      ctx.translate(W/2, H*0.38);
+      ctx.scale(scale, scale);
+      ctx.font = '900 64px "Yu Gothic","Meiryo",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#ff2f7a';
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = '#ffe14d';
+      ctx.shadowBlur = 24;
+      ctx.strokeText(u.text, 0, 0);
+      ctx.fillText(u.text, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  function render(t){
+    ctx.save();
+
+    var sx=0, sy=0;
+    if(shakeTime > 0){
+      var m = shakeMag * (shakeTime/0.4);
+      sx = rand(-m,m);
+      sy = rand(-m,m);
+    }
+    ctx.translate(sx,sy);
+
+    drawBackground(t);
+    drawCity();
+    drawHero(t);
+
+    for(var i=0;i<enemies.length;i++){
+      drawKaiju(enemies[i]);
+    }
+
+    drawLasers();
+    drawParticles();
+
+    ctx.restore(); // シェイクぶんを もどす（ポップアップは がめん こていで だす）
+
+    drawPopups();
+  }
+
+  // ============================================================
+  // タイトル / ゲームオーバー がめんの かんたんな はいけい アニメ
+  // ============================================================
+  function renderIdle(t){
+    ctx.save();
+    drawBackground(t);
+    drawCity();
+    drawHero(t);
+    // ゆっくり ながれる かいじゅう えんしゅつ（タイトル えんしゅつ）
+    ctx.restore();
+  }
+
+  // ============================================================
+  // メインループ
+  // ============================================================
+  var lastTime = performance.now();
+  function loop(now){
+    var dt = (now - lastTime) / 1000;
+    if(dt > 0.05) dt = 0.05;
+    lastTime = now;
+    var t = now/1000;
+
+    if(state === STATE_PLAYING){
+      update(dt);
+      render(t);
+      updateKeyboardHighlight(enemies);
+    } else {
+      renderIdle(t);
+      updateKeyboardHighlight([]);
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
